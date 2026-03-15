@@ -1,15 +1,18 @@
+buildscript {
+	repositories {
+		mavenCentral()
+	}
+}
+
 plugins {
-	id 'fabric-loom' version '1.2.+'
+	id 'fabric-loom' version '1.15-SNAPSHOT'
 	id 'maven-publish'
 
 	id "com.github.breadmoirai.github-release" version "2.4.1"
-	id "org.ajoberstar.grgit" version "4.1.0"
+	id "org.ajoberstar.grgit" version "4.1.1"
 	id "com.modrinth.minotaur" version "2.+"
 	id "com.matthewprenger.cursegradle" version "1.4.0"
 }
-
-sourceCompatibility = JavaVersion.VERSION_17
-targetCompatibility = JavaVersion.VERSION_17
 
 String getGitVersion(Project project) {
 	if (grgit != null) {
@@ -36,7 +39,6 @@ String getChangelog(String githubUrl) {
 	}.join("\n") + (githubUrl == null ? "" : "\n\nSee the full changes on Github: ${githubUrl}commits/${grgit.describe(tags: true)}")
 }
 
-archivesBaseName = project.archives_base_name
 version = getGitVersion(project)
 group = project.maven_group
 
@@ -85,20 +87,19 @@ tasks.withType(JavaCompile).configureEach {
 	// If Javadoc is generated, this must be specified in that task too.
 	it.options.encoding = "UTF-8"
 
-	// Minecraft 1.18 (1.18-pre2) upwards uses Java 17.
-	it.options.release = 17
+	it.options.release = 21
 }
 
 java {
-	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-	// if it is present.
-	// If you remove this line, sources will not be generated.
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
 	withSourcesJar()
 }
 
 jar {
+	archiveBaseName = project.archives_base_name
 	from("LICENSE") {
-		rename { "${it}_${project.archivesBaseName}"}
+		rename { "${it}_${project.archives_base_name}"}
 	}
 }
 
@@ -154,7 +155,7 @@ if (System.getenv("GITHUB_TOKEN")) {
 
 if (System.getenv("MODRINTH_TOKEN")) {
 	modrinth {
-		projectId = project.archivesBaseName
+		projectId = project.archives_base_name
 		uploadFile = remapJar
 		gameVersions = supportedVersions
 		loaders = ["fabric", "quilt"]

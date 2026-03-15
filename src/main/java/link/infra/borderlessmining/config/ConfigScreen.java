@@ -2,6 +2,7 @@ package link.infra.borderlessmining.config;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.Selectable;
@@ -58,8 +59,9 @@ public abstract class ConfigScreen extends Screen {
 			return 400;
 		}
 
-		protected int getScrollbarPositionX() {
-			return super.getScrollbarPositionX() + 32;
+		@Override
+		protected int getScrollbarX() {
+			return super.getScrollbarX() + 32;
 		}
 
 		public Style getHoveredStyle(int mouseX, int mouseY) {
@@ -80,10 +82,10 @@ public abstract class ConfigScreen extends Screen {
 		}
 
 		@Override
-		public void render(DrawContext context, int index, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered, float tickDelta) {
+		public void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float delta) {
 			for (ClickableWidget widget : buttons) {
-				widget.setY(y);
-				widget.render(context, mouseX, mouseY, tickDelta);
+				widget.setY(getY());
+				widget.render(context, mouseX, mouseY, delta);
 			}
 		}
 
@@ -121,7 +123,7 @@ public abstract class ConfigScreen extends Screen {
 
 	@Override
 	public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
-		this.renderBackgroundTexture(context);
+		super.renderBackground(context, mouseX, mouseY, delta);
 	}
 
 	public abstract void addElements();
@@ -154,22 +156,22 @@ public abstract class ConfigScreen extends Screen {
 		}
 
 		@Override
-		public void render(DrawContext drawContext, int index, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered, float tickDelta) {
-			drawContext.drawCenteredTextWithShadow(textRenderer, headerText, width / 2, y + 5, 16777215);
+		public void render(DrawContext drawContext, int mouseX, int mouseY, boolean hovered, float delta) {
+			drawContext.drawCenteredTextWithShadow(textRenderer, headerText, width / 2, getY() + 5, 16777215);
 		}
 
 		private Style getStyleAt(int mouseX) {
-			int min = (width / 2) - (textWidth / 2);
-			int max = (width / 2) + (textWidth / 2);
-			if (mouseX >= min && mouseX <= max) {
-				return textRenderer.getTextHandler().getStyleAt(headerText, mouseX - min);
-			}
 			return null;
 		}
 
 		@Override
-		public boolean mouseClicked(double mouseX, double mouseY, int button) {
-			return screen.handleTextClick(getStyleAt((int) mouseX));
+		public boolean mouseClicked(Click click, boolean doubled) {
+			Style style = getStyleAt((int) click.x());
+			if (style != null && style.getClickEvent() != null) {
+				Screen.handleBasicClickEvent(style.getClickEvent(), MinecraftClient.getInstance(), screen);
+				return true;
+			}
+			return false;
 		}
 
 		@Override
@@ -235,20 +237,13 @@ public abstract class ConfigScreen extends Screen {
 
 		@Override
 		public Style getHoveredStyle(int mouseX, int mouseY) {
-			int max = this.x + textWidth;
-			if (mouseX >= this.x && mouseX <= max) {
-				Style style = textRenderer.getTextHandler().getStyleAt(textField.getMessage(), mouseX - this.x);
-				if (style != null && style.getHoverEvent() != null) {
-					return style;
-				}
-			}
 			return null;
 		}
 
 		@Override
-		public void render(DrawContext drawContext, int index, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered, float tickDelta) {
-			drawContext.drawTextWithShadow(textRenderer, textField.getMessage(), this.x, y + 5, 16777215);
-			super.render(drawContext, index, y, x, entryWidth, entryHeight, mouseX, mouseY, hovered, tickDelta);
+		public void render(DrawContext drawContext, int mouseX, int mouseY, boolean hovered, float delta) {
+			drawContext.drawTextWithShadow(textRenderer, textField.getMessage(), this.x, getY() + 5, 16777215);
+			super.render(drawContext, mouseX, mouseY, hovered, delta);
 		}
 	}
 

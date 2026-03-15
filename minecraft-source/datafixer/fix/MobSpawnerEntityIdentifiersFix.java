@@ -1,0 +1,65 @@
+/*
+ * Internal private/static methods:
+ *   Lnet/minecraft/datafixer/fix/MobSpawnerEntityIdentifiersFix;fixTypeEverywhereTyped(Ljava/lang/String;Lcom/mojang/datafixers/types/Type;Lcom/mojang/datafixers/types/Type;Ljava/util/function/Function;)Lcom/mojang/datafixers/TypeRewriteRule;
+ *   Lnet/minecraft/datafixer/fix/MobSpawnerEntityIdentifiersFix;fixSpawner(Lcom/mojang/serialization/Dynamic;)Lcom/mojang/serialization/Dynamic;
+ */
+package net.minecraft.datafixer.fix;
+
+import com.mojang.datafixers.DSL;
+import com.mojang.datafixers.DataFix;
+import com.mojang.datafixers.DataFixUtils;
+import com.mojang.datafixers.TypeRewriteRule;
+import com.mojang.datafixers.Typed;
+import com.mojang.datafixers.schemas.Schema;
+import com.mojang.datafixers.types.Type;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.Dynamic;
+import java.util.Optional;
+import java.util.stream.Stream;
+import net.minecraft.datafixer.TypeReferences;
+
+public class MobSpawnerEntityIdentifiersFix
+extends DataFix {
+    public MobSpawnerEntityIdentifiersFix(Schema schema, boolean bl) {
+        super(schema, bl);
+    }
+
+    private Dynamic<?> fixSpawner(Dynamic<?> spawnerDynamic) {
+        Optional<Stream<Dynamic<?>>> optional2;
+        if (!"MobSpawner".equals(spawnerDynamic.get("id").asString(""))) {
+            return spawnerDynamic;
+        }
+        Optional<String> optional = spawnerDynamic.get("EntityId").asString().result();
+        if (optional.isPresent()) {
+            Dynamic dynamic2 = DataFixUtils.orElse(spawnerDynamic.get("SpawnData").result(), spawnerDynamic.emptyMap());
+            dynamic2 = dynamic2.set("id", dynamic2.createString(optional.get().isEmpty() ? "Pig" : optional.get()));
+            spawnerDynamic = spawnerDynamic.set("SpawnData", dynamic2);
+            spawnerDynamic = spawnerDynamic.remove("EntityId");
+        }
+        if ((optional2 = spawnerDynamic.get("SpawnPotentials").asStreamOpt().result()).isPresent()) {
+            spawnerDynamic = spawnerDynamic.set("SpawnPotentials", spawnerDynamic.createList(optional2.get().map(spawnPotentialsDynamic -> {
+                Optional<String> optional = spawnPotentialsDynamic.get("Type").asString().result();
+                if (optional.isPresent()) {
+                    Dynamic dynamic2 = DataFixUtils.orElse(spawnPotentialsDynamic.get("Properties").result(), spawnPotentialsDynamic.emptyMap()).set("id", spawnPotentialsDynamic.createString(optional.get()));
+                    return spawnPotentialsDynamic.set("Entity", dynamic2).remove("Type").remove("Properties");
+                }
+                return spawnPotentialsDynamic;
+            })));
+        }
+        return spawnerDynamic;
+    }
+
+    @Override
+    public TypeRewriteRule makeRule() {
+        Type<?> type = this.getOutputSchema().getType(TypeReferences.UNTAGGED_SPAWNER);
+        return this.fixTypeEverywhereTyped("MobSpawnerEntityIdentifiersFix", this.getInputSchema().getType(TypeReferences.UNTAGGED_SPAWNER), type, (Typed<?> untaggedSpawnerTyped) -> {
+            Dynamic dynamic = untaggedSpawnerTyped.get(DSL.remainderFinder());
+            DataResult dataResult = type.readTyped(this.fixSpawner(dynamic = dynamic.set("id", dynamic.createString("MobSpawner"))));
+            if (dataResult.result().isEmpty()) {
+                return untaggedSpawnerTyped;
+            }
+            return dataResult.result().get().getFirst();
+        });
+    }
+}
+

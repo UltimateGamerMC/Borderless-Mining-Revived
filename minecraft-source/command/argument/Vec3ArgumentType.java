@@ -1,0 +1,88 @@
+/*
+ * External method calls:
+ *   Lnet/minecraft/command/argument/LocalPosArgument;parse(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/command/argument/LocalPosArgument;
+ *   Lnet/minecraft/command/argument/DefaultPosArgument;parse(Lcom/mojang/brigadier/StringReader;Z)Lnet/minecraft/command/argument/DefaultPosArgument;
+ *   Lnet/minecraft/command/CommandSource;suggestPositions(Ljava/lang/String;Ljava/util/Collection;Lcom/mojang/brigadier/suggestion/SuggestionsBuilder;Ljava/util/function/Predicate;)Ljava/util/concurrent/CompletableFuture;
+ *   Lnet/minecraft/text/Text;translatable(Ljava/lang/String;)Lnet/minecraft/text/MutableText;
+ *
+ * Internal private/static methods:
+ *   Lnet/minecraft/command/argument/Vec3ArgumentType;parse(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/command/argument/PosArgument;
+ */
+package net.minecraft.command.argument;
+
+import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.arguments.ArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+import net.minecraft.command.CommandSource;
+import net.minecraft.command.argument.DefaultPosArgument;
+import net.minecraft.command.argument.LocalPosArgument;
+import net.minecraft.command.argument.PosArgument;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.Vec3d;
+
+public class Vec3ArgumentType
+implements ArgumentType<PosArgument> {
+    private static final Collection<String> EXAMPLES = Arrays.asList("0 0 0", "~ ~ ~", "^ ^ ^", "^1 ^ ^-5", "0.1 -0.5 .9", "~0.5 ~1 ~-5");
+    public static final SimpleCommandExceptionType INCOMPLETE_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("argument.pos3d.incomplete"));
+    public static final SimpleCommandExceptionType MIXED_COORDINATE_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("argument.pos.mixed"));
+    private final boolean centerIntegers;
+
+    public Vec3ArgumentType(boolean centerIntegers) {
+        this.centerIntegers = centerIntegers;
+    }
+
+    public static Vec3ArgumentType vec3() {
+        return new Vec3ArgumentType(true);
+    }
+
+    public static Vec3ArgumentType vec3(boolean centerIntegers) {
+        return new Vec3ArgumentType(centerIntegers);
+    }
+
+    public static Vec3d getVec3(CommandContext<ServerCommandSource> context, String name) {
+        return context.getArgument(name, PosArgument.class).getPos(context.getSource());
+    }
+
+    public static PosArgument getPosArgument(CommandContext<ServerCommandSource> context, String name) {
+        return context.getArgument(name, PosArgument.class);
+    }
+
+    @Override
+    public PosArgument parse(StringReader stringReader) throws CommandSyntaxException {
+        if (stringReader.canRead() && stringReader.peek() == '^') {
+            return LocalPosArgument.parse(stringReader);
+        }
+        return DefaultPosArgument.parse(stringReader, this.centerIntegers);
+    }
+
+    @Override
+    public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
+        if (context.getSource() instanceof CommandSource) {
+            String string = builder.getRemaining();
+            Collection<CommandSource.RelativePosition> collection = !string.isEmpty() && string.charAt(0) == '^' ? Collections.singleton(CommandSource.RelativePosition.ZERO_LOCAL) : ((CommandSource)context.getSource()).getPositionSuggestions();
+            return CommandSource.suggestPositions(string, collection, builder, CommandManager.getCommandValidator(this::parse));
+        }
+        return Suggestions.empty();
+    }
+
+    @Override
+    public Collection<String> getExamples() {
+        return EXAMPLES;
+    }
+
+    @Override
+    public /* synthetic */ Object parse(StringReader reader) throws CommandSyntaxException {
+        return this.parse(reader);
+    }
+}
+

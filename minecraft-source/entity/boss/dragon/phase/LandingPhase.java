@@ -1,0 +1,85 @@
+/*
+ * External method calls:
+ *   Lnet/minecraft/particle/DragonBreathParticleEffect;of(Lnet/minecraft/particle/ParticleType;F)Lnet/minecraft/particle/DragonBreathParticleEffect;
+ *   Lnet/minecraft/world/World;addParticleClient(Lnet/minecraft/particle/ParticleEffect;DDDDDD)V
+ *   Lnet/minecraft/world/gen/feature/EndPortalFeature;offsetOrigin(Lnet/minecraft/util/math/BlockPos;)Lnet/minecraft/util/math/BlockPos;
+ *   Lnet/minecraft/entity/boss/dragon/phase/PhaseManager;create(Lnet/minecraft/entity/boss/dragon/phase/PhaseType;)Lnet/minecraft/entity/boss/dragon/phase/Phase;
+ */
+package net.minecraft.entity.boss.dragon.phase;
+
+import net.minecraft.entity.boss.dragon.EnderDragonEntity;
+import net.minecraft.entity.boss.dragon.phase.AbstractPhase;
+import net.minecraft.entity.boss.dragon.phase.PhaseType;
+import net.minecraft.particle.DragonBreathParticleEffect;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.Heightmap;
+import net.minecraft.world.gen.feature.EndPortalFeature;
+import org.jspecify.annotations.Nullable;
+
+public class LandingPhase
+extends AbstractPhase {
+    private @Nullable Vec3d target;
+
+    public LandingPhase(EnderDragonEntity arg) {
+        super(arg);
+    }
+
+    @Override
+    public void clientTick() {
+        Vec3d lv = this.dragon.getRotationVectorFromPhase(1.0f).normalize();
+        lv.rotateY(-0.7853982f);
+        double d = this.dragon.head.getX();
+        double e = this.dragon.head.getBodyY(0.5);
+        double f = this.dragon.head.getZ();
+        for (int i = 0; i < 8; ++i) {
+            Random lv2 = this.dragon.getRandom();
+            double g = d + lv2.nextGaussian() / 2.0;
+            double h = e + lv2.nextGaussian() / 2.0;
+            double j = f + lv2.nextGaussian() / 2.0;
+            Vec3d lv3 = this.dragon.getVelocity();
+            this.dragon.getEntityWorld().addParticleClient(DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0f), g, h, j, -lv.x * (double)0.08f + lv3.x, -lv.y * (double)0.3f + lv3.y, -lv.z * (double)0.08f + lv3.z);
+            lv.rotateY(0.19634955f);
+        }
+    }
+
+    @Override
+    public void serverTick(ServerWorld world) {
+        if (this.target == null) {
+            this.target = Vec3d.ofBottomCenter(world.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, EndPortalFeature.offsetOrigin(this.dragon.getFightOrigin())));
+        }
+        if (this.target.squaredDistanceTo(this.dragon.getX(), this.dragon.getY(), this.dragon.getZ()) < 1.0) {
+            this.dragon.getPhaseManager().create(PhaseType.SITTING_FLAMING).reset();
+            this.dragon.getPhaseManager().setPhase(PhaseType.SITTING_SCANNING);
+        }
+    }
+
+    @Override
+    public float getMaxYAcceleration() {
+        return 1.5f;
+    }
+
+    @Override
+    public float getYawAcceleration() {
+        float f = (float)this.dragon.getVelocity().horizontalLength() + 1.0f;
+        float g = Math.min(f, 40.0f);
+        return g / f;
+    }
+
+    @Override
+    public void beginPhase() {
+        this.target = null;
+    }
+
+    @Override
+    public @Nullable Vec3d getPathTarget() {
+        return this.target;
+    }
+
+    public PhaseType<LandingPhase> getType() {
+        return PhaseType.LANDING;
+    }
+}
+

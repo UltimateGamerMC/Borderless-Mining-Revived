@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import link.infra.borderlessmining.util.WindowHooks;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.Util;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -116,7 +117,7 @@ public class ConfigHandler {
 	}
 
 	public boolean isEnabled() {
-		return enableBorderlessFullscreen && (!MinecraftClient.IS_SYSTEM_MAC || enableMacOS);
+		return enableBorderlessFullscreen && (Util.getOperatingSystem() != Util.OperatingSystem.OSX || enableMacOS);
 	}
 
 	public void save() {

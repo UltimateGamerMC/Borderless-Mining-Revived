@@ -6,6 +6,7 @@
   ],
   "client": [
 	  "FullScreenOptionMixin",
+	  "SimpleOptionAccessor",
 	  "VideoModeFixMixin",
 	  "WindowMixin"
   ],

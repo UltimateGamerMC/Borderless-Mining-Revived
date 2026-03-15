@@ -1,0 +1,72 @@
+/*
+ * External method calls:
+ *   Lnet/minecraft/block/Block;replace(Lnet/minecraft/block/BlockState;Lnet/minecraft/block/BlockState;Lnet/minecraft/world/WorldAccess;Lnet/minecraft/util/math/BlockPos;II)V
+ *   Lnet/minecraft/block/BlockState;neighborUpdate(Lnet/minecraft/world/World;Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/Block;Lnet/minecraft/world/block/WireOrientation;Z)V
+ *   Lnet/minecraft/util/crash/CrashReport;create(Ljava/lang/Throwable;Ljava/lang/String;)Lnet/minecraft/util/crash/CrashReport;
+ *   Lnet/minecraft/util/crash/CrashReport;addElement(Ljava/lang/String;)Lnet/minecraft/util/crash/CrashReportSection;
+ *   Lnet/minecraft/util/crash/CrashReportSection;addBlockInfo(Lnet/minecraft/util/crash/CrashReportSection;Lnet/minecraft/world/HeightLimitView;Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/BlockState;)V
+ *
+ * Internal private/static methods:
+ *   Lnet/minecraft/world/block/NeighborUpdater;updateNeighbor(Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/Block;Lnet/minecraft/world/block/WireOrientation;)V
+ */
+package net.minecraft.world.block;
+
+import java.util.Locale;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.crash.CrashException;
+import net.minecraft.util.crash.CrashReport;
+import net.minecraft.util.crash.CrashReportSection;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.world.block.WireOrientation;
+import org.jspecify.annotations.Nullable;
+
+public interface NeighborUpdater {
+    public static final Direction[] UPDATE_ORDER = new Direction[]{Direction.WEST, Direction.EAST, Direction.DOWN, Direction.UP, Direction.NORTH, Direction.SOUTH};
+
+    public void replaceWithStateForNeighborUpdate(Direction var1, BlockState var2, BlockPos var3, BlockPos var4, @Block.SetBlockStateFlag int var5, int var6);
+
+    public void updateNeighbor(BlockPos var1, Block var2, @Nullable WireOrientation var3);
+
+    public void updateNeighbor(BlockState var1, BlockPos var2, Block var3, @Nullable WireOrientation var4, boolean var5);
+
+    default public void updateNeighbors(BlockPos pos, Block sourceBlock, @Nullable Direction except, @Nullable WireOrientation orientation) {
+        for (Direction lv : UPDATE_ORDER) {
+            if (lv == except) continue;
+            this.updateNeighbor(pos.offset(lv), sourceBlock, null);
+        }
+    }
+
+    public static void replaceWithStateForNeighborUpdate(WorldAccess world, Direction direction, BlockPos pos, BlockPos neighborPos, BlockState neighborState, @Block.SetBlockStateFlag int flags, int maxUpdateDepth) {
+        BlockState lv = world.getBlockState(pos);
+        if ((flags & Block.SKIP_REDSTONE_WIRE_STATE_REPLACEMENT) != 0 && lv.isOf(Blocks.REDSTONE_WIRE)) {
+            return;
+        }
+        BlockState lv2 = lv.getStateForNeighborUpdate(world, world, pos, direction, neighborPos, neighborState, world.getRandom());
+        Block.replace(lv, lv2, world, pos, flags, maxUpdateDepth);
+    }
+
+    public static void tryNeighborUpdate(World world, BlockState state, BlockPos pos, Block sourceBlock, @Nullable WireOrientation orientation, boolean notify) {
+        try {
+            state.neighborUpdate(world, pos, sourceBlock, orientation, notify);
+        } catch (Throwable throwable) {
+            CrashReport lv = CrashReport.create(throwable, "Exception while updating neighbours");
+            CrashReportSection lv2 = lv.addElement("Block being updated");
+            lv2.add("Source block type", () -> {
+                try {
+                    return String.format(Locale.ROOT, "ID #%s (%s // %s)", Registries.BLOCK.getId(sourceBlock), sourceBlock.getTranslationKey(), sourceBlock.getClass().getCanonicalName());
+                } catch (Throwable throwable) {
+                    return "ID #" + String.valueOf(Registries.BLOCK.getId(sourceBlock));
+                }
+            });
+            CrashReportSection.addBlockInfo(lv2, world, pos, state);
+            throw new CrashException(lv);
+        }
+    }
+}
+

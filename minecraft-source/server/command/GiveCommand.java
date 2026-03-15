@@ -1,0 +1,88 @@
+/*
+ * External method calls:
+ *   Lnet/minecraft/server/command/CommandManager;literal(Ljava/lang/String;)Lcom/mojang/brigadier/builder/LiteralArgumentBuilder;
+ *   Lnet/minecraft/server/command/CommandManager;requirePermissionLevel(Lnet/minecraft/command/permission/PermissionCheck;)Lnet/minecraft/command/permission/PermissionSourcePredicate;
+ *   Lnet/minecraft/command/argument/EntityArgumentType;players()Lnet/minecraft/command/argument/EntityArgumentType;
+ *   Lnet/minecraft/server/command/CommandManager;argument(Ljava/lang/String;Lcom/mojang/brigadier/arguments/ArgumentType;)Lcom/mojang/brigadier/builder/RequiredArgumentBuilder;
+ *   Lnet/minecraft/command/argument/ItemStackArgumentType;itemStack(Lnet/minecraft/command/CommandRegistryAccess;)Lnet/minecraft/command/argument/ItemStackArgumentType;
+ *   Lnet/minecraft/command/argument/ItemStackArgument;createStack(IZ)Lnet/minecraft/item/ItemStack;
+ *   Lnet/minecraft/item/ItemStack;toHoverableText()Lnet/minecraft/text/Text;
+ *   Lnet/minecraft/text/Text;translatable(Ljava/lang/String;[Ljava/lang/Object;)Lnet/minecraft/text/MutableText;
+ *   Lnet/minecraft/server/command/ServerCommandSource;sendError(Lnet/minecraft/text/Text;)V
+ *   Lnet/minecraft/entity/player/PlayerInventory;insertStack(Lnet/minecraft/item/ItemStack;)Z
+ *   Lnet/minecraft/server/network/ServerPlayerEntity;dropItem(Lnet/minecraft/item/ItemStack;Z)Lnet/minecraft/entity/ItemEntity;
+ *   Lnet/minecraft/server/world/ServerWorld;playSound(Lnet/minecraft/entity/Entity;DDDLnet/minecraft/sound/SoundEvent;Lnet/minecraft/sound/SoundCategory;FF)V
+ *   Lnet/minecraft/server/command/ServerCommandSource;sendFeedback(Ljava/util/function/Supplier;Z)V
+ *
+ * Internal private/static methods:
+ *   Lnet/minecraft/server/command/GiveCommand;execute(Lnet/minecraft/server/command/ServerCommandSource;Lnet/minecraft/command/argument/ItemStackArgument;Ljava/util/Collection;I)I
+ */
+package net.minecraft.server.command;
+
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.builder.ArgumentBuilder;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import java.util.Collection;
+import net.minecraft.command.CommandRegistryAccess;
+import net.minecraft.command.argument.EntityArgumentType;
+import net.minecraft.command.argument.ItemStackArgument;
+import net.minecraft.command.argument.ItemStackArgumentType;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
+
+public class GiveCommand {
+    public static final int MAX_STACKS = 100;
+
+    public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess commandRegistryAccess) {
+        dispatcher.register((LiteralArgumentBuilder)((LiteralArgumentBuilder)CommandManager.literal("give").requires(CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK))).then(CommandManager.argument("targets", EntityArgumentType.players()).then((ArgumentBuilder<ServerCommandSource, ?>)((RequiredArgumentBuilder)CommandManager.argument("item", ItemStackArgumentType.itemStack(commandRegistryAccess)).executes(context -> GiveCommand.execute((ServerCommandSource)context.getSource(), ItemStackArgumentType.getItemStackArgument(context, "item"), EntityArgumentType.getPlayers(context, "targets"), 1))).then(CommandManager.argument("count", IntegerArgumentType.integer(1)).executes(context -> GiveCommand.execute((ServerCommandSource)context.getSource(), ItemStackArgumentType.getItemStackArgument(context, "item"), EntityArgumentType.getPlayers(context, "targets"), IntegerArgumentType.getInteger(context, "count")))))));
+    }
+
+    private static int execute(ServerCommandSource source, ItemStackArgument item, Collection<ServerPlayerEntity> targets, int count) throws CommandSyntaxException {
+        ItemStack lv = item.createStack(1, false);
+        int j = lv.getMaxCount();
+        int k = j * 100;
+        if (count > k) {
+            source.sendError(Text.translatable("commands.give.failed.toomanyitems", k, lv.toHoverableText()));
+            return 0;
+        }
+        for (ServerPlayerEntity lv2 : targets) {
+            int l = count;
+            while (l > 0) {
+                ItemEntity lv4;
+                int m = Math.min(j, l);
+                l -= m;
+                ItemStack lv3 = item.createStack(m, false);
+                boolean bl = lv2.getInventory().insertStack(lv3);
+                if (!bl || !lv3.isEmpty()) {
+                    lv4 = lv2.dropItem(lv3, false);
+                    if (lv4 == null) continue;
+                    lv4.resetPickupDelay();
+                    lv4.setOwner(lv2.getUuid());
+                    continue;
+                }
+                lv4 = lv2.dropItem(lv, false);
+                if (lv4 != null) {
+                    lv4.setDespawnImmediately();
+                }
+                lv2.getEntityWorld().playSound(null, lv2.getX(), lv2.getY(), lv2.getZ(), SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.PLAYERS, 0.2f, ((lv2.getRandom().nextFloat() - lv2.getRandom().nextFloat()) * 0.7f + 1.0f) * 2.0f);
+                lv2.currentScreenHandler.sendContentUpdates();
+            }
+        }
+        if (targets.size() == 1) {
+            source.sendFeedback(() -> Text.translatable("commands.give.success.single", count, lv.toHoverableText(), ((ServerPlayerEntity)targets.iterator().next()).getDisplayName()), true);
+        } else {
+            source.sendFeedback(() -> Text.translatable("commands.give.success.single", count, lv.toHoverableText(), targets.size()), true);
+        }
+        return targets.size();
+    }
+}
+

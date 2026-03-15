@@ -1,0 +1,66 @@
+/*
+ * External method calls:
+ *   Lnet/minecraft/client/render/item/ItemRenderState;addModelKey(Ljava/lang/Object;)V
+ *   Lnet/minecraft/client/render/item/ItemRenderState;addLayers(I)V
+ *   Lnet/minecraft/client/render/item/model/ItemModel;update(Lnet/minecraft/client/render/item/ItemRenderState;Lnet/minecraft/item/ItemStack;Lnet/minecraft/client/item/ItemModelManager;Lnet/minecraft/item/ItemDisplayContext;Lnet/minecraft/client/world/ClientWorld;Lnet/minecraft/util/HeldItemContext;I)V
+ */
+package net.minecraft.client.render.item.model;
+
+import com.mojang.datafixers.kinds.Applicative;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import java.util.List;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.client.item.ItemModelManager;
+import net.minecraft.client.render.item.ItemRenderState;
+import net.minecraft.client.render.item.model.ItemModel;
+import net.minecraft.client.render.item.model.ItemModelTypes;
+import net.minecraft.client.render.model.ResolvableModel;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.item.ItemDisplayContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.HeldItemContext;
+import org.jspecify.annotations.Nullable;
+
+@Environment(value=EnvType.CLIENT)
+public class CompositeItemModel
+implements ItemModel {
+    private final List<ItemModel> models;
+
+    public CompositeItemModel(List<ItemModel> models) {
+        this.models = models;
+    }
+
+    @Override
+    public void update(ItemRenderState state, ItemStack stack, ItemModelManager resolver, ItemDisplayContext displayContext, @Nullable ClientWorld world, @Nullable HeldItemContext heldItemContext, int seed) {
+        state.addModelKey(this);
+        state.addLayers(this.models.size());
+        for (ItemModel lv : this.models) {
+            lv.update(state, stack, resolver, displayContext, world, heldItemContext, seed);
+        }
+    }
+
+    @Environment(value=EnvType.CLIENT)
+    public record Unbaked(List<ItemModel.Unbaked> models) implements ItemModel.Unbaked
+    {
+        public static final MapCodec<Unbaked> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(((MapCodec)ItemModelTypes.CODEC.listOf().fieldOf("models")).forGetter(Unbaked::models)).apply((Applicative<Unbaked, ?>)instance, Unbaked::new));
+
+        public MapCodec<Unbaked> getCodec() {
+            return CODEC;
+        }
+
+        @Override
+        public void resolve(ResolvableModel.Resolver resolver) {
+            for (ItemModel.Unbaked lv : this.models) {
+                lv.resolve(resolver);
+            }
+        }
+
+        @Override
+        public ItemModel bake(ItemModel.BakeContext context) {
+            return new CompositeItemModel(this.models.stream().map(model -> model.bake(context)).toList());
+        }
+    }
+}
+

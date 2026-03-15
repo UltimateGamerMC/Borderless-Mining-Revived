@@ -1,0 +1,35 @@
+/*
+ * External method calls:
+ *   Lnet/minecraft/util/Identifier;ofVanilla(Ljava/lang/String;)Lnet/minecraft/util/Identifier;
+ */
+package net.minecraft.client.render.entity;
+
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.render.entity.GuardianEntityRenderer;
+import net.minecraft.client.render.entity.model.EntityModelLayers;
+import net.minecraft.client.render.entity.state.GuardianEntityRenderState;
+import net.minecraft.client.render.entity.state.LivingEntityRenderState;
+import net.minecraft.util.Identifier;
+
+@Environment(value=EnvType.CLIENT)
+public class ElderGuardianEntityRenderer
+extends GuardianEntityRenderer {
+    public static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/guardian_elder.png");
+
+    public ElderGuardianEntityRenderer(EntityRendererFactory.Context arg) {
+        super(arg, 1.2f, EntityModelLayers.ELDER_GUARDIAN);
+    }
+
+    @Override
+    public Identifier getTexture(GuardianEntityRenderState arg) {
+        return TEXTURE;
+    }
+
+    @Override
+    public /* synthetic */ Identifier getTexture(LivingEntityRenderState state) {
+        return this.getTexture((GuardianEntityRenderState)state);
+    }
+}
+

@@ -1,0 +1,55 @@
+/*
+ * External method calls:
+ *   Lnet/minecraft/util/LenientJsonParser;parse(Ljava/lang/String;)Lcom/google/gson/JsonElement;
+ *   Lnet/minecraft/client/realms/dto/WorldTemplate;parse(Lcom/google/gson/JsonObject;)Lnet/minecraft/client/realms/dto/WorldTemplate;
+ */
+package net.minecraft.client.realms.dto;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.mojang.logging.LogUtils;
+import java.util.ArrayList;
+import java.util.List;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.client.realms.dto.WorldTemplate;
+import net.minecraft.client.realms.util.JsonUtils;
+import net.minecraft.util.LenientJsonParser;
+import org.slf4j.Logger;
+
+@Environment(value=EnvType.CLIENT)
+public record WorldTemplatePaginatedList(List<WorldTemplate> templates, int page, int size, int total) {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
+    public WorldTemplatePaginatedList(int size) {
+        this(List.of(), 0, size, -1);
+    }
+
+    public boolean isLastPage() {
+        return this.page * this.size >= this.total && this.page > 0 && this.total > 0 && this.size > 0;
+    }
+
+    public static WorldTemplatePaginatedList parse(String json) {
+        ArrayList<WorldTemplate> list = new ArrayList<WorldTemplate>();
+        int i = 0;
+        int j = 0;
+        int k = 0;
+        try {
+            JsonObject jsonObject = LenientJsonParser.parse(json).getAsJsonObject();
+            if (jsonObject.get("templates").isJsonArray()) {
+                for (JsonElement jsonElement : jsonObject.get("templates").getAsJsonArray()) {
+                    WorldTemplate lv = WorldTemplate.parse(jsonElement.getAsJsonObject());
+                    if (lv == null) continue;
+                    list.add(lv);
+                }
+            }
+            i = JsonUtils.getIntOr("page", jsonObject, 0);
+            j = JsonUtils.getIntOr("size", jsonObject, 0);
+            k = JsonUtils.getIntOr("total", jsonObject, 0);
+        } catch (Exception exception) {
+            LOGGER.error("Could not parse WorldTemplatePaginatedList", exception);
+        }
+        return new WorldTemplatePaginatedList(list, i, j, k);
+    }
+}
+

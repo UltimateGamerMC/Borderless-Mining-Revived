@@ -1,0 +1,116 @@
+/*
+ * External method calls:
+ *   Lnet/minecraft/util/collection/DefaultedList;ofSize(ILjava/lang/Object;)Lnet/minecraft/util/collection/DefaultedList;
+ *   Lnet/minecraft/inventory/Inventories;removeStack(Ljava/util/List;I)Lnet/minecraft/item/ItemStack;
+ *   Lnet/minecraft/inventory/Inventories;splitStack(Ljava/util/List;II)Lnet/minecraft/item/ItemStack;
+ *   Lnet/minecraft/screen/ScreenHandler;onContentChanged(Lnet/minecraft/inventory/Inventory;)V
+ *   Lnet/minecraft/recipe/RecipeFinder;addInputIfUsable(Lnet/minecraft/item/ItemStack;)V
+ */
+package net.minecraft.inventory;
+
+import java.util.List;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.inventory.Inventories;
+import net.minecraft.inventory.RecipeInputInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.recipe.RecipeFinder;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.util.collection.DefaultedList;
+
+public class CraftingInventory
+implements RecipeInputInventory {
+    private final DefaultedList<ItemStack> stacks;
+    private final int width;
+    private final int height;
+    private final ScreenHandler handler;
+
+    public CraftingInventory(ScreenHandler handler, int width, int height) {
+        this(handler, width, height, DefaultedList.ofSize(width * height, ItemStack.EMPTY));
+    }
+
+    private CraftingInventory(ScreenHandler handler, int width, int height, DefaultedList<ItemStack> stacks) {
+        this.stacks = stacks;
+        this.handler = handler;
+        this.width = width;
+        this.height = height;
+    }
+
+    @Override
+    public int size() {
+        return this.stacks.size();
+    }
+
+    @Override
+    public boolean isEmpty() {
+        for (ItemStack lv : this.stacks) {
+            if (lv.isEmpty()) continue;
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public ItemStack getStack(int slot) {
+        if (slot >= this.size()) {
+            return ItemStack.EMPTY;
+        }
+        return this.stacks.get(slot);
+    }
+
+    @Override
+    public ItemStack removeStack(int slot) {
+        return Inventories.removeStack(this.stacks, slot);
+    }
+
+    @Override
+    public ItemStack removeStack(int slot, int amount) {
+        ItemStack lv = Inventories.splitStack(this.stacks, slot, amount);
+        if (!lv.isEmpty()) {
+            this.handler.onContentChanged(this);
+        }
+        return lv;
+    }
+
+    @Override
+    public void setStack(int slot, ItemStack stack) {
+        this.stacks.set(slot, stack);
+        this.handler.onContentChanged(this);
+    }
+
+    @Override
+    public void markDirty() {
+    }
+
+    @Override
+    public boolean canPlayerUse(PlayerEntity player) {
+        return true;
+    }
+
+    @Override
+    public void clear() {
+        this.stacks.clear();
+    }
+
+    @Override
+    public int getHeight() {
+        return this.height;
+    }
+
+    @Override
+    public int getWidth() {
+        return this.width;
+    }
+
+    @Override
+    public List<ItemStack> getHeldStacks() {
+        return List.copyOf(this.stacks);
+    }
+
+    @Override
+    public void provideRecipeInputs(RecipeFinder finder) {
+        for (ItemStack lv : this.stacks) {
+            finder.addInputIfUsable(lv);
+        }
+    }
+}
+

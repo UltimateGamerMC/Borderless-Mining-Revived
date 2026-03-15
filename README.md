@@ -7,4 +7,4 @@ This mod is a rewrite of a Forge 1.12 mod, [Fullscreen Windowed (Borderless)](ht
 
 See [Borderless Window](https://github.com/Nekeras/borderless) by nekeras if you're looking for a similar mod for Forge 1.14+
 
-On macOS this mod is disabled by default, as it is impossible to position the window above the menu bar, and macOS has better fullscreen support anyway.
+On macOS this mod is disabled by default, as it is impossible to position the window above the menu bar, and macOS has better fullscreen support anyway.# Borderless-Mining-Revived

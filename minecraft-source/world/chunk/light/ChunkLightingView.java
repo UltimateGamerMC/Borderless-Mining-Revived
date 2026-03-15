@@ -1,0 +1,58 @@
+package net.minecraft.world.chunk.light;
+
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.ChunkSectionPos;
+import net.minecraft.world.chunk.ChunkNibbleArray;
+import net.minecraft.world.chunk.light.LightingView;
+import org.jspecify.annotations.Nullable;
+
+public interface ChunkLightingView
+extends LightingView {
+    public @Nullable ChunkNibbleArray getLightSection(ChunkSectionPos var1);
+
+    public int getLightLevel(BlockPos var1);
+
+    public static enum Empty implements ChunkLightingView
+    {
+        INSTANCE;
+
+
+        @Override
+        public @Nullable ChunkNibbleArray getLightSection(ChunkSectionPos pos) {
+            return null;
+        }
+
+        @Override
+        public int getLightLevel(BlockPos pos) {
+            return 0;
+        }
+
+        @Override
+        public void checkBlock(BlockPos pos) {
+        }
+
+        @Override
+        public boolean hasUpdates() {
+            return false;
+        }
+
+        @Override
+        public int doLightUpdates() {
+            return 0;
+        }
+
+        @Override
+        public void setSectionStatus(ChunkSectionPos pos, boolean notReady) {
+        }
+
+        @Override
+        public void setColumnEnabled(ChunkPos pos, boolean retainData) {
+        }
+
+        @Override
+        public void propagateLight(ChunkPos chunkPos) {
+        }
+    }
+}
+

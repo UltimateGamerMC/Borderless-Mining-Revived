@@ -1,0 +1,118 @@
+/*
+ * External method calls:
+ *   Lnet/minecraft/util/path/PathUtil;createDirectories(Ljava/nio/file/Path;)V
+ *   Lnet/minecraft/nbt/NbtIo;readCompound(Ljava/io/DataInput;)Lnet/minecraft/nbt/NbtCompound;
+ *   Lnet/minecraft/nbt/NbtSizeTracker;ofUnlimitedBytes()Lnet/minecraft/nbt/NbtSizeTracker;
+ *   Lnet/minecraft/nbt/NbtIo;scan(Ljava/io/DataInput;Lnet/minecraft/nbt/scanner/NbtScanner;Lnet/minecraft/nbt/NbtSizeTracker;)V
+ *   Lnet/minecraft/world/storage/RegionFile;delete(Lnet/minecraft/util/math/ChunkPos;)V
+ *   Lnet/minecraft/nbt/NbtIo;writeCompound(Lnet/minecraft/nbt/NbtCompound;Ljava/io/DataOutput;)V
+ */
+package net.minecraft.world.storage;
+
+import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.nio.file.Path;
+import net.minecraft.SharedConstants;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.NbtSizeTracker;
+import net.minecraft.nbt.scanner.NbtScanner;
+import net.minecraft.util.ThrowableDeliverer;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.path.PathUtil;
+import net.minecraft.world.storage.RegionFile;
+import net.minecraft.world.storage.StorageKey;
+import org.jspecify.annotations.Nullable;
+
+public final class RegionBasedStorage
+implements AutoCloseable {
+    public static final String MCA_EXTENSION = ".mca";
+    private static final int MAX_CACHE_SIZE = 256;
+    private final Long2ObjectLinkedOpenHashMap<RegionFile> cachedRegionFiles = new Long2ObjectLinkedOpenHashMap();
+    private final StorageKey storageKey;
+    private final Path directory;
+    private final boolean dsync;
+
+    RegionBasedStorage(StorageKey storageKey, Path directory, boolean dsync) {
+        this.directory = directory;
+        this.dsync = dsync;
+        this.storageKey = storageKey;
+    }
+
+    private RegionFile getRegionFile(ChunkPos pos) throws IOException {
+        long l = ChunkPos.toLong(pos.getRegionX(), pos.getRegionZ());
+        RegionFile lv = this.cachedRegionFiles.getAndMoveToFirst(l);
+        if (lv != null) {
+            return lv;
+        }
+        if (this.cachedRegionFiles.size() >= 256) {
+            this.cachedRegionFiles.removeLast().close();
+        }
+        PathUtil.createDirectories(this.directory);
+        Path path = this.directory.resolve("r." + pos.getRegionX() + "." + pos.getRegionZ() + MCA_EXTENSION);
+        RegionFile lv2 = new RegionFile(this.storageKey, path, this.directory, this.dsync);
+        this.cachedRegionFiles.putAndMoveToFirst(l, lv2);
+        return lv2;
+    }
+
+    public @Nullable NbtCompound getTagAt(ChunkPos pos) throws IOException {
+        RegionFile lv = this.getRegionFile(pos);
+        try (DataInputStream dataInputStream = lv.getChunkInputStream(pos);){
+            if (dataInputStream == null) {
+                NbtCompound nbtCompound = null;
+                return nbtCompound;
+            }
+            NbtCompound nbtCompound = NbtIo.readCompound(dataInputStream);
+            return nbtCompound;
+        }
+    }
+
+    public void scanChunk(ChunkPos chunkPos, NbtScanner scanner) throws IOException {
+        RegionFile lv = this.getRegionFile(chunkPos);
+        try (DataInputStream dataInputStream = lv.getChunkInputStream(chunkPos);){
+            if (dataInputStream != null) {
+                NbtIo.scan(dataInputStream, scanner, NbtSizeTracker.ofUnlimitedBytes());
+            }
+        }
+    }
+
+    protected void write(ChunkPos pos, @Nullable NbtCompound nbt) throws IOException {
+        if (SharedConstants.DONT_SAVE_WORLD) {
+            return;
+        }
+        RegionFile lv = this.getRegionFile(pos);
+        if (nbt == null) {
+            lv.delete(pos);
+        } else {
+            try (DataOutputStream dataOutputStream = lv.getChunkOutputStream(pos);){
+                NbtIo.writeCompound(nbt, dataOutputStream);
+            }
+        }
+    }
+
+    @Override
+    public void close() throws IOException {
+        ThrowableDeliverer<IOException> lv = new ThrowableDeliverer<IOException>();
+        for (RegionFile lv2 : this.cachedRegionFiles.values()) {
+            try {
+                lv2.close();
+            } catch (IOException iOException) {
+                lv.add(iOException);
+            }
+        }
+        lv.deliver();
+    }
+
+    public void sync() throws IOException {
+        for (RegionFile lv : this.cachedRegionFiles.values()) {
+            lv.sync();
+        }
+    }
+
+    public StorageKey getStorageKey() {
+        return this.storageKey;
+    }
+}
+

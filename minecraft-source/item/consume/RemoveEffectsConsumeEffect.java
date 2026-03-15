@@ -1,0 +1,50 @@
+/*
+ * External method calls:
+ *   Lnet/minecraft/registry/entry/RegistryEntryList;of([Lnet/minecraft/registry/entry/RegistryEntry;)Lnet/minecraft/registry/entry/RegistryEntryList$Direct;
+ *   Lnet/minecraft/entity/LivingEntity;removeStatusEffect(Lnet/minecraft/registry/entry/RegistryEntry;)Z
+ *   Lnet/minecraft/registry/RegistryCodecs;entryList(Lnet/minecraft/registry/RegistryKey;)Lcom/mojang/serialization/Codec;
+ *   Lnet/minecraft/network/codec/PacketCodecs;registryEntryList(Lnet/minecraft/registry/RegistryKey;)Lnet/minecraft/network/codec/PacketCodec;
+ *   Lnet/minecraft/network/codec/PacketCodec;tuple(Lnet/minecraft/network/codec/PacketCodec;Ljava/util/function/Function;Ljava/util/function/Function;)Lnet/minecraft/network/codec/PacketCodec;
+ */
+package net.minecraft.item.consume;
+
+import com.mojang.datafixers.kinds.Applicative;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.effect.StatusEffect;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.consume.ConsumeEffect;
+import net.minecraft.network.RegistryByteBuf;
+import net.minecraft.network.codec.PacketCodec;
+import net.minecraft.network.codec.PacketCodecs;
+import net.minecraft.registry.RegistryCodecs;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.registry.entry.RegistryEntryList;
+import net.minecraft.world.World;
+
+public record RemoveEffectsConsumeEffect(RegistryEntryList<StatusEffect> effects) implements ConsumeEffect
+{
+    public static final MapCodec<RemoveEffectsConsumeEffect> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(((MapCodec)RegistryCodecs.entryList(RegistryKeys.STATUS_EFFECT).fieldOf("effects")).forGetter(RemoveEffectsConsumeEffect::effects)).apply((Applicative<RemoveEffectsConsumeEffect, ?>)instance, RemoveEffectsConsumeEffect::new));
+    public static final PacketCodec<RegistryByteBuf, RemoveEffectsConsumeEffect> PACKET_CODEC = PacketCodec.tuple(PacketCodecs.registryEntryList(RegistryKeys.STATUS_EFFECT), RemoveEffectsConsumeEffect::effects, RemoveEffectsConsumeEffect::new);
+
+    public RemoveEffectsConsumeEffect(RegistryEntry<StatusEffect> effect) {
+        this(RegistryEntryList.of(effect));
+    }
+
+    public ConsumeEffect.Type<RemoveEffectsConsumeEffect> getType() {
+        return ConsumeEffect.Type.REMOVE_EFFECTS;
+    }
+
+    @Override
+    public boolean onConsume(World world, ItemStack stack, LivingEntity user) {
+        boolean bl = false;
+        for (RegistryEntry registryEntry : this.effects) {
+            if (!user.removeStatusEffect(registryEntry)) continue;
+            bl = true;
+        }
+        return bl;
+    }
+}
+

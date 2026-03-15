@@ -1,0 +1,52 @@
+/*
+ * External method calls:
+ *   Lnet/minecraft/network/PacketByteBuf;readEnumConstant(Ljava/lang/Class;)Ljava/lang/Enum;
+ *   Lnet/minecraft/network/PacketByteBuf;writeEnumConstant(Ljava/lang/Enum;)Lnet/minecraft/network/PacketByteBuf;
+ *   Lnet/minecraft/network/listener/ClientPlayPacketListener;onOpenWrittenBook(Lnet/minecraft/network/packet/s2c/play/OpenWrittenBookS2CPacket;)V
+ *   Lnet/minecraft/network/packet/Packet;createCodec(Lnet/minecraft/network/codec/ValueFirstEncoder;Lnet/minecraft/network/codec/PacketDecoder;)Lnet/minecraft/network/codec/PacketCodec;
+ *
+ * Internal private/static methods:
+ *   Lnet/minecraft/network/packet/s2c/play/OpenWrittenBookS2CPacket;apply(Lnet/minecraft/network/listener/ClientPlayPacketListener;)V
+ */
+package net.minecraft.network.packet.s2c.play;
+
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.codec.PacketCodec;
+import net.minecraft.network.listener.ClientPlayPacketListener;
+import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.PacketType;
+import net.minecraft.network.packet.PlayPackets;
+import net.minecraft.util.Hand;
+
+public class OpenWrittenBookS2CPacket
+implements Packet<ClientPlayPacketListener> {
+    public static final PacketCodec<PacketByteBuf, OpenWrittenBookS2CPacket> CODEC = Packet.createCodec(OpenWrittenBookS2CPacket::write, OpenWrittenBookS2CPacket::new);
+    private final Hand hand;
+
+    public OpenWrittenBookS2CPacket(Hand hand) {
+        this.hand = hand;
+    }
+
+    private OpenWrittenBookS2CPacket(PacketByteBuf buf) {
+        this.hand = buf.readEnumConstant(Hand.class);
+    }
+
+    private void write(PacketByteBuf buf) {
+        buf.writeEnumConstant(this.hand);
+    }
+
+    @Override
+    public PacketType<OpenWrittenBookS2CPacket> getPacketType() {
+        return PlayPackets.OPEN_BOOK;
+    }
+
+    @Override
+    public void apply(ClientPlayPacketListener arg) {
+        arg.onOpenWrittenBook(this);
+    }
+
+    public Hand getHand() {
+        return this.hand;
+    }
+}
+
