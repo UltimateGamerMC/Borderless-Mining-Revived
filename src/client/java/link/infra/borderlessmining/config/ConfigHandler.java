@@ -2,9 +2,10 @@ package link.infra.borderlessmining.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.mojang.blaze3d.platform.Window;
 import link.infra.borderlessmining.util.WindowHooks;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.util.Util;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,7 +30,6 @@ public class ConfigHandler {
 			try (FileReader reader = new FileReader(configFile.toFile())) {
 				INSTANCE = gson.fromJson(reader, ConfigHandler.class);
 			} catch (FileNotFoundException ignored) {
-				// Do nothing!
 			} catch (IOException e) {
 				LOGGER.error("Failed to read configuration", e);
 			}
@@ -117,19 +117,16 @@ public class ConfigHandler {
 	}
 
 	public boolean isEnabled() {
-		return enableBorderlessFullscreen && (Util.getOperatingSystem() != Util.OperatingSystem.OSX || enableMacOS);
+		return enableBorderlessFullscreen && (Util.getPlatform() != Util.OS.OSX || enableMacOS);
 	}
 
 	public void save() {
 		if (enabledDirty) {
-			//noinspection ConstantConditions
-			WindowHooks window = (WindowHooks) (Object) MinecraftClient.getInstance().getWindow();
+			WindowHooks window = (WindowHooks) (Object) Minecraft.getInstance().getWindow();
 
-			// This must be done before changing window mode/pos/size as changing those restarts FullScreenOptionMixin
 			enableBorderlessFullscreen = enabledPending;
 			enabledDirty = false;
 
-			// Update window state
 			window.borderlessmining_apply();
 		}
 

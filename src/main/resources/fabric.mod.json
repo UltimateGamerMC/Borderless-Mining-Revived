@@ -19,9 +19,6 @@
 
   "environment": "client",
   "entrypoints": {
-    "modmenu" : [
-      "link.infra.borderlessmining.config.ModMenuCompat"
-    ]
   },
   "mixins": [
     {
@@ -29,11 +26,10 @@
       "environment": "client"
     }
   ],
-  "accessWidener": "borderlessmining.accesswidener",
 
   "depends": {
     "fabricloader": ">=0.7.2",
     "fabric-resource-loader-v0": "*",
-    "minecraft": "~1.21.11"
+    "minecraft": "~26.1.1"
   }
 }

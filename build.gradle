@@ -5,7 +5,7 @@ buildscript {
 }
 
 plugins {
-	id 'fabric-loom' version '1.15-SNAPSHOT'
+	id 'net.fabricmc.fabric-loom' version '1.16.0-alpha.16'
 	id 'maven-publish'
 
 	id "com.github.breadmoirai.github-release" version "2.4.1"
@@ -42,34 +42,32 @@ String getChangelog(String githubUrl) {
 version = getGitVersion(project)
 group = project.maven_group
 
-repositories {
-	maven { url "https://maven.terraformersmc.com/" }
-}
-
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
 	// Fabric API for testing
-	modRuntimeOnly "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	runtimeOnly "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
 	// Bundle fabric-resource-loader-v0 for the config GUI
-	modImplementation(fabricApi.module("fabric-resource-loader-v0", project.fabric_version))
+	implementation(fabricApi.module("fabric-resource-loader-v0", project.fabric_version))
 	include(fabricApi.module("fabric-resource-loader-v0", project.fabric_version))
 
 	// PSA: Some older mods, compiled on Loom 0.2.1, might have outdated Maven POMs.
 	// You may need to force-disable transitiveness on them.
 
-	modImplementation("com.terraformersmc:modmenu:${project.modmenu_version}") {
-		exclude(group: "net.fabricmc.fabric-api")
-		exclude(group: "net.fabricmc.fabric-loader")
-	}
 }
 
 loom {
-	accessWidenerPath = file("src/main/resources/borderlessmining.accesswidener")
+	splitEnvironmentSourceSets()
+
+	mods {
+		borderlessmining {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
 }
 
 processResources {
@@ -81,18 +79,13 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	// ensure that the encoding is set to UTF-8, no matter what the system default is
-	// this fixes some edge cases with special characters not displaying correctly
-	// see http://yodaconditions.net/blog/fix-for-java-file-encoding-problems-with-gradle.html
-	// If Javadoc is generated, this must be specified in that task too.
 	it.options.encoding = "UTF-8"
-
-	it.options.release = 21
 }
 
 java {
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
 	withSourcesJar()
 }
 
@@ -147,7 +140,7 @@ if (System.getenv("GITHUB_TOKEN")) {
 		draft = false
 		body = getChangelog(null)
 		token System.getenv("GITHUB_TOKEN")
-		releaseAssets.from(remapJar)
+		releaseAssets.from(jar)
 	}
 
 	publish.dependsOn(tasks.githubRelease)
@@ -156,7 +149,7 @@ if (System.getenv("GITHUB_TOKEN")) {
 if (System.getenv("MODRINTH_TOKEN")) {
 	modrinth {
 		projectId = project.archives_base_name
-		uploadFile = remapJar
+		uploadFile = jar
 		gameVersions = supportedVersions
 		loaders = ["fabric", "quilt"]
 		versionName = verName
@@ -173,7 +166,7 @@ if (System.getenv("CURSEFORGE_TOKEN")) {
 			id = project.curseforge_id
 			releaseType = "release"
 
-			mainArtifact(remapJar) {
+			mainArtifact(jar) {
 				displayName = verName
 			}
 			for (version in supportedVersions) {

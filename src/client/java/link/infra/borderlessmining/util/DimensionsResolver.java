@@ -1,10 +1,9 @@
 package link.infra.borderlessmining.util;
 
+import com.mojang.blaze3d.platform.Monitor;
+import com.mojang.blaze3d.platform.VideoMode;
+import com.mojang.blaze3d.platform.Window;
 import link.infra.borderlessmining.config.ConfigHandler;
-import net.minecraft.client.util.Monitor;
-import net.minecraft.client.util.MonitorTracker;
-import net.minecraft.client.util.VideoMode;
-import net.minecraft.client.util.Window;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lwjgl.PointerBuffer;
@@ -22,7 +21,7 @@ public class DimensionsResolver {
 	public int width;
 	public int height;
 
-	public boolean resolve(Window window, MonitorTracker tracker) {
+	public boolean resolve(Window window) {
 		if (ConfigHandler.getInstance().customWindowDimensions != null &&
 			ConfigHandler.getInstance().customWindowDimensions.enabled &&
 			!ConfigHandler.getInstance().customWindowDimensions.useMonitorCoordinates) {
@@ -31,14 +30,14 @@ public class DimensionsResolver {
 			width = 0;
 			height = 0;
 		} else if (ConfigHandler.getInstance().forceWindowMonitor < 0) {
-			Monitor monitor = tracker.getMonitor(window);
+			Monitor monitor = window.findBestMonitor();
 			if (monitor == null) {
 				LOGGER.error("Failed to get a valid monitor for determining fullscreen size!");
 				return false;
 			}
-			VideoMode mode = monitor.getCurrentVideoMode();
-			x = monitor.getViewportX();
-			y = monitor.getViewportY();
+			VideoMode mode = monitor.getCurrentMode();
+			x = monitor.getX();
+			y = monitor.getY();
 			width = mode.getWidth();
 			height = mode.getHeight();
 		} else {
