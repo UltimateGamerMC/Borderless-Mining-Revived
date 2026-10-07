@@ -12,8 +12,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.lwjgl.PointerBuffer;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.Monitor;
+import link.infra.borderlessmining.util.Displays;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,12 +42,6 @@ public class BorderlessMiningConfigScreen extends OptionsSubScreen {
 			configHandler::setEnabledPending
 		));
 		this.list.addBig(OptionInstance.createBoolean(
-			"config.borderlessmining.general.videomodeoption",
-			OptionInstance.cachedConstantTooltip(Component.translatable("config.borderlessmining.general.videomodeoption.tooltip")),
-			configHandler.addToVanillaVideoSettings,
-			value -> configHandler.addToVanillaVideoSettings = value
-		));
-		this.list.addBig(OptionInstance.createBoolean(
 			"config.borderlessmining.general.enabledmac",
 			OptionInstance.cachedConstantTooltip(Component.translatable("config.borderlessmining.general.enabledmac.tooltip")),
 			configHandler.enableMacOS,
@@ -60,20 +54,13 @@ public class BorderlessMiningConfigScreen extends OptionsSubScreen {
 		if (currentMonitor < 0) {
 			currentMonitor = 0;
 		}
-		PointerBuffer monitors = GLFW.glfwGetMonitors();
-		if (monitors == null || monitors.limit() < 1) {
-			LOGGER.warn("Failed to get a valid monitor list!");
+		List<Monitor> monitors = Displays.list();
+		if (configHandler.forceWindowMonitor >= monitors.size()) {
+			LOGGER.warn("Monitor " + configHandler.forceWindowMonitor + " is greater than list size " + monitors.size() + ", using monitor 0");
 			currentMonitor = 0;
-		} else {
-			if (configHandler.forceWindowMonitor >= monitors.limit()) {
-				LOGGER.warn("Monitor " + configHandler.forceWindowMonitor + " is greater than list size " + monitors.limit() + ", using monitor 0");
-				currentMonitor = 0;
-			}
-			for (int i = 0; i < monitors.limit(); i++) {
-				long monitorHandle = monitors.get(i);
-				String name = GLFW.glfwGetMonitorName(monitorHandle);
-				monitorNames.add((name != null ? name : "?") + " (" + (monitorNames.size() - 1) + ")");
-			}
+		}
+		for (Monitor monitor : monitors) {
+			monitorNames.add(monitor.name() + " (" + (monitorNames.size() - 1) + ")");
 		}
 
 		List<Integer> monitorIndices = IntStream.range(0, monitorNames.size()).boxed().toList();
